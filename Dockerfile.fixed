@@ -1,0 +1,19 @@
+FROM openjdk:17-alpine
+WORKDIR /app
+
+# Копируем только нужные файлы для сборки
+COPY pom.xml .
+COPY src ./src
+COPY fonts ./fonts
+
+# Устанавливаем Maven и собираем проект
+RUN apk add --no-cache maven && \
+    mvn clean package -DskipTests
+
+# Создаем необходимые директории
+RUN mkdir -p uploads output
+
+EXPOSE 8080
+
+# Проверяем что JAR существует и запускаем
+CMD ["sh", "-c", "ls -la target/ && java -jar target/diploma-generator-1.0.0.jar --server.port=8080 --server.address=0.0.0.0"]
