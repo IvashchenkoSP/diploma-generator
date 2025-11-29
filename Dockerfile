@@ -1,12 +1,12 @@
-FROM maven:3.8.6-openjdk-17 AS builder
-WORKDIR /app
-COPY . .
-RUN mvn clean package -DskipTests
-
 FROM openjdk:17-alpine
 WORKDIR /app
-COPY --from=builder /app/target/diploma-generator-1.0.0.jar app.jar
-COPY fonts/ ./fonts/
-RUN mkdir -p uploads output
+
+# Клонируем репозиторий (или копируем файлы)
+COPY . .
+RUN apk add --no-cache maven git && \
+    mvn clean package -DskipTests
+
+RUN mkdir -p uploads output fonts
+
 EXPOSE 8080
-CMD ["java", "-jar", "app.jar", "--server.port=8080", "--server.address=0.0.0.0"]
+CMD ["java", "-jar", "target/diploma-generator-1.0.0.jar", "--server.port=8080", "--server.address=0.0.0.0"]
