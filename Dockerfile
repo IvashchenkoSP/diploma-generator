@@ -1,22 +1,12 @@
-FROM openjdk:17-jdk-slim
-
+FROM maven:3.8.6-openjdk-17 AS build
 WORKDIR /app
-
-# Копируем исходный код
 COPY . .
+RUN mvn clean package -DskipTests
 
-# Устанавливаем Maven и собираем проект
-RUN apt-get update && apt-get install -y maven && \
-    mvn clean package -DskipTests
-
-# Создаем необходимые папки
-RUN mkdir -p uploads output fonts
-
-# Копируем шрифты если они есть
+FROM openjdk:17-jdk-slim
+WORKDIR /app
+COPY --from=build /app/target/diploma-generator-1.0.0.jar app.jar
 COPY fonts/ ./fonts/
-
-# Открываем порт
+RUN mkdir -p uploads output
 EXPOSE 8080
-
-# Запускаем приложение
-CMD ["java", "-jar", "target/diploma-generator-1.0.0.jar"]
+CMD ["java", "-jar", "app.jar"]
