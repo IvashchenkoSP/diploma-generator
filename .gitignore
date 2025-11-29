@@ -5,3 +5,10 @@ output/
 .DS_Store
 .idea/
 *.iml
+.classpath
+.project
+.settings/
+bin/
+*.jar
+*.war
+*.ear
