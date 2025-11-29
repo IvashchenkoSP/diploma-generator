@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: diploma-generator
+    plan: free
+    env: maven
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/diploma-generator-1.0.0.jar
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: PORT
+        value: 8080
