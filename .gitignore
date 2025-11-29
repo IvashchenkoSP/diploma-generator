@@ -1,0 +1,7 @@
+target/
+uploads/
+output/
+*.log
+.DS_Store
+.idea/
+*.iml

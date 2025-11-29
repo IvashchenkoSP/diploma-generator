@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Text Position Preview</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: Arial, sans-serif; }
+        .card { box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); margin-bottom: 1rem; border: none; }
+        .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; }
+        .preview-container { border: 2px solid #dee2e6; border-radius: 0.375rem; background: white; }
+        .controls { background: #f8f9fa; padding: 1rem; border-radius: 0.375rem; }
+        .coordinate-display { background: #e9ecef; padding: 0.5rem; border-radius: 0.25rem; font-family: monospace; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; }
+        .template-select { border-left: 4px solid #28a745; padding-left: 10px; }
+        .mode-indicator { font-size: 0.8em; padding: 0.25rem 0.5rem; border-radius: 0.25rem; }
+        .mode-template { background: #d4edda; color: #155724; }
+        .mode-grid { background: #fff3cd; color: #856404; }
+        .mode-error { background: #f8d7da; color: #721c24; }
+        .error-message { background: #f8d7da; color: #721c24; padding: 0.5rem; border-radius: 0.25rem; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1>🎯 Text Position Preview</h1>
+                <p class="lead">Adjust text position on template or grid</p>
+            </div>
+            <div>
+                <a href="/check-templates" class="btn btn-outline-info btn-sm me-2" target="_blank">
+                    🔍 Check Templates
+                </a>
+                <a href="/" class="btn btn-outline-secondary">← Back to Generator</a>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="error-message alert alert-danger mb-3" style="display: none;">
+            <strong>Error:</strong> <span id="errorText"></span>
+        </div>
+
+        <div class="row">
+            <!-- Control Panel -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">⚙️ Position Settings</h5>
+                    </div>
+                    <div class="card-body controls">
+                        <form id="previewForm">
+                            <!-- Template Selection -->
+                            <div th:if="${hasTemplates}" class="mb-3 template-select">
+                                <label class="form-label">📁 Select Template:</label>
+                                <select class="form-select" id="templateSelect">
+                                    <option value="">-- No template (grid only) --</option>
+                                    <option th:each="template, stat : ${templates}" 
+                                            th:value="${template}" 
+                                            th:text="${templateNames[stat.index]}"></option>
+                                </select>
+                                <div class="form-text">Choose uploaded template for preview</div>
+                            </div>
+                            
+                            <div th:unless="${hasTemplates}" class="mb-3 alert alert-warning">
+                                <small>📝 No templates uploaded. Go to <a href="/">generator</a> to upload PDF template.</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Preview Text:</label>
+                                <input type="text" class="form-control" id="previewText" 
+                                       th:value="${defaultText}" 
+                                       placeholder="Enter preview text">
+                                <div class="form-text">Use Latin characters only (A-Z, 0-9)</div>
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <label class="form-label">Coordinate X:</label>
+                                    <input type="number" class="form-control" id="posX" 
+                                           th:value="${defaultX}" min="0" max="1000" step="1">
+                                    <input type="range" class="form-range mt-2" id="posXRange" 
+                                           min="0" max="1000" th:value="${defaultX}">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Coordinate Y:</label>
+                                    <input type="number" class="form-control" id="posY" 
+                                           th:value="${defaultY}" min="0" max="1000" step="1">
+                                    <input type="range" class="form-range mt-2" id="posYRange" 
+                                           min="0" max="1000" th:value="${defaultY}">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Font Size: <span id="fontSizeValue">16</span>pt</label>
+                                <input type="range" class="form-range" id="fontSize" 
+                                       th:value="${defaultFontSize}" min="8" max="72" step="1">
+                            </div>
+                            
+                            <div class="coordinate-display mb-3">
+                                <strong>Current Coordinates:</strong><br>
+                                X: <span id="currentX">100</span>, 
+                                Y: <span id="currentY">500</span><br>
+                                <span id="modeIndicator" class="mode-indicator mode-grid">Mode: Grid</span>
+                            </div>
+                            
+                            <button type="button" id="generatePreview" class="btn btn-primary w-100 mb-2">
+                                🔄 Update Preview
+                            </button>
+                            
+                            <div class="btn-group w-100" role="group">
+                                <button type="button" class="btn btn-outline-secondary" onclick="setPosition('top')">
+                                    Top
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="setPosition('center')">
+                                    Center
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="setPosition('bottom')">
+                                    Bottom
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Coordinate Tips -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">💡 Coordinate Tips</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Standard Positions (A4 - 595×842):</h6>
+                        <ul class="list-unstyled small">
+                            <li>• <strong>Top:</strong> X=100, Y=700</li>
+                            <li>• <strong>Center:</strong> X=100, Y=400</li>
+                            <li>• <strong>Bottom:</strong> X=100, Y=100</li>
+                            <li>• <strong>Top Right:</strong> X=400, Y=700</li>
+                            <li>• <strong>Bottom Right:</strong> X=400, Y=100</li>
+                        </ul>
+                        <div class="alert alert-info mt-2">
+                            <small>Use sliders for precise position adjustment</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Preview Area -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">👁️ A4 Page Preview</h5>
+                            <small id="templateInfo" class="text-white-50">No template</small>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="autoUpdate" checked>
+                            <label class="form-check-label text-white" for="autoUpdate">Auto-update</label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="preview-container text-center p-4">
+                            <div class="mb-3">
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="updatePreview()">
+                                        🔄 Update
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="copyCoordinates()">
+                                        📋 Copy Coordinates
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info btn-sm" onclick="applyToGenerator()">
+                                        🎓 Apply to Generator
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- PDF Preview Container -->
+                            <div id="pdfPreview" class="border rounded bg-light" 
+                                 style="height: 600px; overflow: auto; position: relative;">
+                                <div class="d-flex align-items-center justify-content-center h-100">
+                                    <div class="text-center">
+                                        <div class="spinner-border text-primary mb-3" role="status"></div>
+                                        <p>Loading preview...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 text-muted small">
+                                <div id="previewInfo">
+                                    <p>Green frame shows text area. Red lines indicate page center.</p>
+                                    <p>Page size: 595 × 842 points (A4)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Control elements
+        const posXInput = document.getElementById('posX');
+        const posXRange = document.getElementById('posXRange');
+        const posYInput = document.getElementById('posY');
+        const posYRange = document.getElementById('posYRange');
+        const fontSizeInput = document.getElementById('fontSize');
+        const fontSizeValue = document.getElementById('fontSizeValue');
+        const currentX = document.getElementById('currentX');
+        const currentY = document.getElementById('currentY');
+        const previewText = document.getElementById('previewText');
+        const templateSelect = document.getElementById('templateSelect');
+        const generateBtn = document.getElementById('generatePreview');
+        const pdfPreview = document.getElementById('pdfPreview');
+        const modeIndicator = document.getElementById('modeIndicator');
+        const templateInfo = document.getElementById('templateInfo');
+        const previewInfo = document.getElementById('previewInfo');
+        const autoUpdate = document.getElementById('autoUpdate');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+
+        // Show/hide error
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+        
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        // Link inputs and ranges
+        posXInput.addEventListener('input', function() {
+            posXRange.value = this.value;
+            updateCoordinates();
+            if (autoUpdate.checked) updatePreview();
+        });
+        
+        posXRange.addEventListener('input', function() {
+            posXInput.value = this.value;
+            updateCoordinates();
+            if (autoUpdate.checked) updatePreview();
+        });
+        
+        posYInput.addEventListener('input', function() {
+            posYRange.value = this.value;
+            updateCoordinates();
+            if (autoUpdate.checked) updatePreview();
+        });
+        
+        posYRange.addEventListener('input', function() {
+            posYInput.value = this.value;
+            updateCoordinates();
+            if (autoUpdate.checked) updatePreview();
+        });
+        
+        fontSizeInput.addEventListener('input', function() {
+            fontSizeValue.textContent = this.value;
+            if (autoUpdate.checked) updatePreview();
+        });
+        
+        previewText.addEventListener('input', function() {
+            if (autoUpdate.checked) updatePreview();
+        });
+        
+        templateSelect.addEventListener('change', function() {
+            updateModeIndicator();
+            if (autoUpdate.checked) updatePreview();
+        });
+        
+        // Update coordinates and mode
+        function updateCoordinates() {
+            currentX.textContent = posXInput.value;
+            currentY.textContent = posYInput.value;
+        }
+        
+        function updateModeIndicator() {
+            const templatePath = templateSelect.value;
+            if (templatePath) {
+                const templateName = templateSelect.options[templateSelect.selectedIndex].text;
+                modeIndicator.textContent = 'Mode: Template';
+                modeIndicator.className = 'mode-indicator mode-template';
+                templateInfo.textContent = `Template: ${templateName}`;
+                previewInfo.innerHTML = `
+                    <p>Text is added on top of selected template.</p>
+                    <p>Red coordinates show text position.</p>
+                `;
+            } else {
+                modeIndicator.textContent = 'Mode: Grid';
+                modeIndicator.className = 'mode-indicator mode-grid';
+                templateInfo.textContent = 'No template';
+                previewInfo.innerHTML = `
+                    <p>Green frame shows text area. Red lines indicate page center.</p>
+                    <p>Page size: 595 × 842 points (A4)</p>
+                `;
+            }
+        }
+        
+        // Preset positions
+        function setPosition(position) {
+            switch(position) {
+                case 'top':
+                    posXInput.value = 100;
+                    posYInput.value = 700;
+                    break;
+                case 'center':
+                    posXInput.value = 100;
+                    posYInput.value = 400;
+                    break;
+                case 'bottom':
+                    posXInput.value = 100;
+                    posYInput.value = 100;
+                    break;
+            }
+            posXRange.value = posXInput.value;
+            posYRange.value = posYInput.value;
+            updateCoordinates();
+            updatePreview();
+        }
+        
+        // Copy coordinates
+        function copyCoordinates() {
+            const coords = `X: ${posXInput.value}, Y: ${posYInput.value}`;
+            navigator.clipboard.writeText(coords).then(() => {
+                alert('Coordinates copied: ' + coords);
+            });
+        }
+        
+        // Apply to generator
+        function applyToGenerator() {
+            const coords = `?posX=${posXInput.value}&posY=${posYInput.value}&fontSize=${fontSizeInput.value}`;
+            window.open('/' + coords, '_blank');
+        }
+        
+        // Update preview
+        function updatePreview() {
+            const text = previewText.value || 'Sample Text';
+            const x = posXInput.value;
+            const y = posYInput.value;
+            const fontSize = fontSizeInput.value;
+            const templatePath = templateSelect.value;
+            
+            // Show loading
+            pdfPreview.innerHTML = `
+                <div class="d-flex align-items-center justify-content-center h-100">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary mb-3" role="status"></div>
+                        <p>Generating preview...</p>
+                    </div>
+                </div>
+            `;
+            
+            hideError();
+            
+            // Generate preview URL
+            let url = `/generate-preview?text=${encodeURIComponent(text)}&posX=${x}&posY=${y}&fontSize=${fontSize}`;
+            if (templatePath) {
+                url += `&templatePath=${encodeURIComponent(templatePath)}`;
+            }
+            
+            // Embed PDF
+            setTimeout(() => {
+                const embed = document.createElement('embed');
+                embed.src = url;
+                embed.type = 'application/pdf';
+                embed.width = '100%';
+                embed.height = '100%';
+                embed.onerror = function() {
+                    showError('Failed to load preview. Template might be corrupted or unavailable.');
+                    modeIndicator.textContent = 'Mode: Error';
+                    modeIndicator.className = 'mode-indicator mode-error';
+                };
+                
+                pdfPreview.innerHTML = '';
+                pdfPreview.appendChild(embed);
+            }, 500);
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCoordinates();
+            updateModeIndicator();
+            updatePreview();
+            
+            // Update button
+            generateBtn.addEventListener('click', updatePreview);
+        });
+    </script>
+</body>
+</html>
